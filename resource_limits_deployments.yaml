@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-deployment
+spec:
+  replicas: 3  # Number of replicas you want
+  selector:
+    matchLabels:
+      app: sample-app
+  template:
+    metadata:
+      labels:
+        app: sample-app
+    spec:
+      containers:
+      - name: sample-container
+        image: nginx:latest  # Replace with your container image
+        resources:
+          limits:
+            cpu: "0.5"  # Maximum CPU limit for the container (e.g., 0.5 CPU cores)
+            memory: "512Mi"  # Maximum memory limit for the container (e.g., 512 MiB)
+          requests:
+            cpu: "0.1"  # Minimum CPU request for the container (e.g., 0.1 CPU cores)
+            memory: "256Mi"  # Minimum memory request for the container (e.g., 256 MiB)
