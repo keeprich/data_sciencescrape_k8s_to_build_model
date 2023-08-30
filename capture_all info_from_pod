@@ -1,0 +1,64 @@
+import os
+import csv
+from kubernetes import client, config
+
+# Load Kubernetes configuration (you should have a valid kubeconfig)
+config.load_kube_config()
+
+# Define the namespace
+namespace = "default"
+
+# Create a Kubernetes API client
+api = client.CoreV1Api()
+api_ext = client.CustomObjectsApi()
+
+# List all pods in the namespace
+try:
+    pod_list = api.list_namespaced_pod(namespace=namespace)
+except Exception as e:
+    print(f"Error listing pods in namespace {namespace}: {e}")
+    exit(1)
+
+# Define the path to save the CSV file
+output_dir = "/path/to/output/dir"
+csv_file_name = "pod_details.csv"
+
+# Create a CSV file and save detailed information for each pod
+with open(os.path.join(output_dir, csv_file_name), "w", newline="") as csv_file:
+    csv_writer = csv.writer(csv_file)
+    header = ["Pod Name", "Status", "Resource Requests", "Resource Limits", "Container Activities"]
+    csv_writer.writerow(header)  # Write header row
+
+    for pod in pod_list.items:
+        pod_name = pod.metadata.name
+        pod_status = pod.status.phase
+        container_activities = []
+
+        # Get resource requests and limits for each container
+        for container in pod.spec.containers:
+            resources = container.resources
+            requests = resources.requests if resources.requests else {}
+            limits = resources.limits if resources.limits else {}
+            container_resources = {
+                "CPU Requests": requests.get("cpu", ""),
+                "Memory Requests": requests.get("memory", ""),
+                "CPU Limits": limits.get("cpu", ""),
+                "Memory Limits": limits.get("memory", ""),
+            }
+            container_activities.append(f"Container: {container.name}, Resources: {container_resources}")
+
+        # Fetch events for the pod
+        try:
+            events = api_ext.list_namespaced_custom_object(
+                "events.k8s.io", "v1beta1", namespace, "events", field_selector=f"involvedObject.name={pod_name}"
+            )
+            for event in events["items"]:
+                message = event.get("message", "")
+                container_name = event.get("source", {}).get("component", "")
+                container_activities.append(f"Container: {container_name}, Event: {message}")
+        except Exception as e:
+            print(f"Error fetching events for pod {pod_name}: {e}")
+
+        csv_writer.writerow([pod_name, pod_status, "", "", " | ".join(container_activities)])
+
+print(f"Details for all pods in namespace {namespace} saved in {os.path.join(output_dir, csv_file_name)}")
