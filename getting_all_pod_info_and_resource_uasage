@@ -1,0 +1,53 @@
+import os
+import csv
+from kubernetes import client, config
+
+# Load Kubernetes configuration (you should have a valid kubeconfig)
+config.load_kube_config()
+
+# Define the namespace
+namespace = "default"
+
+# Create a Kubernetes API client
+api = client.CoreV1Api()
+
+# List all pods in the namespace
+try:
+    pod_list = api.list_namespaced_pod(namespace=namespace)
+except Exception as e:
+    print(f"Error listing pods in namespace {namespace}: {e}")
+    exit(1)
+
+# Define the path to save the CSV file
+path_to_file = ''
+output_dir = "/path/to/output/dir"
+csv_file_name = "pod_details.csv"
+
+# Create a CSV file and save detailed information for each pod
+with open(os.path.join(output_dir, csv_file_name), "w", newline="") as csv_file:
+    csv_writer = csv.writer(csv_file)
+    header = ["Pod Name", "Status", "CPU Requests", "Memory Requests", "CPU Limits", "Memory Limits"]
+    csv_writer.writerow(header)  # Write header row
+
+    for pod in pod_list.items:
+        pod_name = pod.metadata.name
+        pod_status = pod.status.phase
+        cpu_requests = []
+        memory_requests = []
+        cpu_limits = []
+        memory_limits = []
+
+        # Get resource requests and limits for each container
+        for container in pod.spec.containers:
+            resources = container.resources
+            requests = resources.requests if resources.requests else {}
+            limits = resources.limits if resources.limits else {}
+            cpu_requests.append(requests.get("cpu", ""))
+            memory_requests.append(requests.get("memory", ""))
+            cpu_limits.append(limits.get("cpu", ""))
+            memory_limits.append(limits.get("memory", ""))
+
+        # Write the values for the first container (you can modify for multiple containers)
+        csv_writer.writerow([pod_name, pod_status, cpu_requests[0], memory_requests[0], cpu_limits[0], memory_limits[0]])
+
+print(f"Details for all pods in namespace {namespace} saved in {os.path.join(output_dir, csv_file_name)}")
