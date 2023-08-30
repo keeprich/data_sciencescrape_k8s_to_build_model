@@ -6,7 +6,7 @@ config.load_kube_config()
 
 # Create a Kubernetes API client for Pods and Metrics
 api = client.CoreV1Api()
-metrics_api = client.CustomObjectsApi()
+metrics_api = client.MetricsV1Api()
 
 # Define the namespace
 namespace = "your-namespace"
@@ -27,16 +27,14 @@ for pod in pod_list.items:
 
     # Fetch resource metrics for the pod
     try:
-        metrics = metrics_api.get_namespaced_pod_metrics(name=pod_name, namespace=namespace)
-        container_metrics = metrics["containers"]
+        metrics = metrics_api.list_namespaced_pod(namespace=namespace, metric_selector=f"pod=={pod_name}")
+        for metric in metrics.items:
+            container_name = metric.metadata.name
+            cpu_usage = metric.containers[0].usage["cpu"]
+            memory_usage = metric.containers[0].usage["memory"]
 
-        print(f"Pod: {pod_name}")
-        print(f"Timestamp: {current_time}")
-        for container_metric in container_metrics:
-            container_name = container_metric["name"]
-            cpu_usage = container_metric["usage"]["cpu"]
-            memory_usage = container_metric["usage"]["memory"]
-
+            print(f"Pod: {pod_name}")
+            print(f"Timestamp: {current_time}")
             print(f"Container: {container_name}")
             print(f"CPU Usage: {cpu_usage}")
             print(f"Memory Usage: {memory_usage}")
