@@ -9,7 +9,7 @@ api = client.CoreV1Api()
 metrics_api = client.MetricsV1Api()
 
 # Define the namespace
-namespace = "your-namespace"
+namespace = "default"
 
 # List all pods in the namespace
 try:
